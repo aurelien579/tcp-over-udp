@@ -1,7 +1,7 @@
 CC		:= gcc
-CFLAGS	:= -Wall -Wno-unused-function
+CFLAGS	:= -Wall -Wno-unused-function -std=c11
 LFLAGS	:=
-OBJECTS := utils.o tcp.o
+OBJECTS := utils.o tcp.o tcp-socket.o
 
 all: server client
 
@@ -20,4 +20,3 @@ client: client.o $(OBJECTS)
 .PHONY: clean
 clean:
 	@rm -f server client *.o
-
