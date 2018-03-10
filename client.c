@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     if (argc < 3) usage(argv[0]);
 
     port = (short) atoi(argv[2]);
-	server_ip = argv[1];
+    server_ip = argv[1];
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {

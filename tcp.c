@@ -69,13 +69,13 @@ static int
 tcp_recv_syn(int fd, struct tcp_packet *packet, struct sockaddr_in *addr)
 {
     ssize_t sz;
-    
-    do {        
-        sz = tcp_recv_packet_from(fd, packet, addr);        
-        
+
+    do {
+        sz = tcp_recv_packet_from(fd, packet, addr);
+
         if (sz < 0) return -1;
     } while (!IS_SET(packet->flags, SYN));
-    
+
     return 0;
 }
 
@@ -102,7 +102,7 @@ tcp_create_socket(struct sockaddr_in *addr)
         close(fd);
         return -1;
     }
-    
+
     return fd;
 }
 
@@ -113,57 +113,57 @@ tcp_connect(int fd, struct sockaddr_in *addr)
 {
     struct tcp_packet recv_packet, send_packet;
     ssize_t sz;
-    
+
     if (tcp_associate_socket(fd, addr) < 0) {
         tcp_log_errno("tcp_associate_socket in tcp_connect");
         return;
     }
-            
+
     /* Send first SYN */
     send_packet.flags = SYN;
     send_packet.other = 0;
-    sz = tcp_send_packet(fd, &send_packet);        
+    sz = tcp_send_packet(fd, &send_packet);
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_connect");
         return;
     }
     tcp_log("SYN sent");
 
-    
+
     /* Receive SYN packet */
-    recv_packet.flags = 0;    
+    recv_packet.flags = 0;
     if (tcp_recv_syn(fd, &recv_packet, addr) < 0) {
         tcp_log_errno("tcp_recv_syn in tcp_connect");
         return;
     }
     tcp_log("SYN received");
-    
-    
+
+
     /* ACK the received SYN */
     send_packet.flags = ACK;
     sz = tcp_send_packet(fd, &send_packet);
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_connect");
         return;
-    }    
+    }
     tcp_log("ACK sent");
 
-    
+
     /* Wait for the ACK if not already received */
     if (!IS_SET(recv_packet.flags, ACK)) {
         tcp_log("ACK was not present receiving it...");
         printf("flags : 0x%x\n", recv_packet.flags);
-        
+
         recv_packet.flags = 0;
         sz = tcp_recv_packet(fd, &recv_packet);
         if (sz < 0) {
             tcp_log_errno("tcp_recv_packet in tcp_connect");
         }
-        
+
         if (!IS_SET(recv_packet.flags, ACK)) {
             tcp_log_error("recv_packet does not have ACK flag in tcp_connect");
         }
-        
+
         tcp_log("ACK received");
     }
 }
@@ -176,20 +176,20 @@ tcp_accept(int fd, struct sockaddr_in *addr)
 {
     struct tcp_packet packet;
     ssize_t sz;
-    
+
     /* Receive the SYN */
     if (tcp_recv_syn(fd, &packet, addr) < 0) {
         tcp_log_errno("tcp_recv_syn in tcp_accept");
         return -1;
     }
     tcp_log("SYN received");
-    
+
     /* Associate the socket to the sender of the SYN */
     if (tcp_associate_socket(fd, addr) < 0) {
         tcp_log_errno("tcp_associate_socket in tcp_accept");
         return -1;
     }
-    
+
     /* Send SYN + ACK */
     packet.flags = SYN | ACK;
     packet.other = 0;
@@ -200,21 +200,21 @@ tcp_accept(int fd, struct sockaddr_in *addr)
     }
     tcp_log("SYN + ACK sent");
 
-    
+
     /* Receive the ACK */
     sz = tcp_recv_packet(fd, &packet);
     if (sz < 0) {
         tcp_log_errno("tcp_recv_packet in tcp_accept");
-        return -1;        
+        return -1;
     }
-    
+
     tcp_log("ACK received");
-    
+
     /* Disasociate the socket for future connections */
     if (tcp_disassociate_socket(fd) < 0) {
         tcp_log_errno("tcp_disassociate_socket in tcp_accept");
         return -1;
     }
-    
+
     return tcp_create_socket(addr);
 }

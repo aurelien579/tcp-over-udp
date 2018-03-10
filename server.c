@@ -14,8 +14,8 @@
 
 void usage(const char *prog)
 {
-	printf("Usage : %s port\n", prog);
-	exit(EXIT_FAILURE);
+    printf("Usage : %s port\n", prog);
+    exit(EXIT_FAILURE);
 }
 
 int main(int argc, char **argv)
@@ -42,8 +42,8 @@ int main(int argc, char **argv)
     addr.sin_port = htons(port);
 
     if (bind(sockfd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) < 0) {
-		panic_perror("bind");
-	}
+        panic_perror("bind");
+    }
 
     int client_sockfd = tcp_accept(sockfd, &clientaddr);
     printf("client_sockfd : %d\n", client_sockfd);
