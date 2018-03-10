@@ -1,7 +1,7 @@
 CC		:= gcc
 CFLAGS	:= -Wall -Wno-unused-function -std=c11
 LFLAGS	:=
-OBJECTS := utils.o tcp.o tcp-socket.o
+OBJECTS := utils.o tcp.o
 
 all: server client
 

@@ -46,12 +46,13 @@ int main(int argc, char **argv)
 	}
 
     int client_sockfd = tcp_accept(sockfd, &clientaddr);
+    printf("client_sockfd : %d\n", client_sockfd);
 
-    char buffer[512];
+    /*char buffer[512];
 
     printf("client_sockfd : %d\n", client_sockfd);
     tcp_recv(client_sockfd, buffer, 512);
-    printf("recv : %s\n", buffer);
+    printf("recv : %s\n", buffer);*/
 
     /*while (1) {
         char buffer[1024];

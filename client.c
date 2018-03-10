@@ -1,13 +1,14 @@
-#include <sys/select.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdbool.h>
-#include <netinet/in.h>
+
+#include <sys/select.h>
 #include <sys/socket.h>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "utils.h"
 #include "tcp.h"
@@ -35,9 +36,7 @@ int main(int argc, char **argv)
         panic_perror("socket");
     }
 
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
-        panic_perror("setsockopt");
-    }
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
     addr.sin_family = AF_INET;
     if (!inet_aton(server_ip, &addr.sin_addr)) {

@@ -1,12 +1,10 @@
 #ifndef TCP_H
 #define TCP_H
 
-#include <arpa/inet.h>
+#include <netinet/in.h>
 
-int tcp_connect(int sockfd, struct sockaddr_in *addr);
-int tcp_accept(int sockfd, struct sockaddr_in *addr);
 
-ssize_t tcp_send(int sockfd, uint8_t *buffer, size_t sz);
-ssize_t tcp_recv(int sockfd, uint8_t *buffer, size_t sz);
+void tcp_connect(int fd, struct sockaddr_in *addr);
+int tcp_accept(int fd, struct sockaddr_in *addr);
 
 #endif
