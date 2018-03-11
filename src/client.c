@@ -46,8 +46,9 @@ int main(int argc, char **argv)
     addr.sin_port = htons(port);
 
     tcp_connect(sockfd, &addr);
-    //tcp_send(sockfd, (uint8_t *) "TEST", 4);
-    //sendto(sockfd, "TEST", 4, 0, (struct sockaddr *) &addr, addrlen);
+    if (tcp_send(sockfd, "TEST", 4) < 0) {
+        printf("Error while sending\n");
+    }
 
     close(sockfd);
 

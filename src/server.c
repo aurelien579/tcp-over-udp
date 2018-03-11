@@ -46,23 +46,13 @@ int main(int argc, char **argv)
     }
 
     int client_sockfd = tcp_accept(sockfd, &clientaddr);
-    printf("client_sockfd : %d\n", client_sockfd);
-
-    /*char buffer[512];
-
-    printf("client_sockfd : %d\n", client_sockfd);
+    char buffer[512];
+    
     tcp_recv(client_sockfd, buffer, 512);
-    printf("recv : %s\n", buffer);*/
+    printf("recv : %s\n", buffer);
 
-    /*while (1) {
-        char buffer[1024];
-        while (recvfrom(sockfd, buffer, sizeof(buffer), 0,
-               (struct sockaddr *) &clientaddr, &addrlen) > 0)
-        {
-            printf("UDP RECV FROM: %s\n", inet_ntoa(clientaddr.sin_addr));
-            printf("UDP RECV DATA: %s\n", buffer);
-        }
-    }*/
-
+    tcp_recv(client_sockfd, buffer, 512);
+    printf("recv : %s\n", buffer);
+    
     return EXIT_SUCCESS;
 }
