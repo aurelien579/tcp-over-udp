@@ -10,15 +10,19 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#define MAX_DATA    512
+
 #define ACK 1
 #define SYN (1 << 1)
 
-#define IS_SET(val, bit)    (val & bit)
+#define IS_SET(val, bit)        (val & bit)
+
+#define PACKET_SIZE(data_size)  (sizeof(uint8_t) + data_size)
 
 struct tcp_packet
 {
     uint8_t flags;
-    uint8_t other;
+    char data[MAX_DATA];
 } __attribute__((packed));
 
 static inline void
@@ -42,13 +46,13 @@ tcp_log(const char *msg)
 static inline void
 tcp_dump_packet(const struct tcp_packet *packet)
 {
-    printf("Packet : 0x%x 0x%x\n", packet->flags, packet->other);
+    printf("Packet : 0x%x\n", packet->flags);
 }
 
 static ssize_t
-tcp_send_packet(int fd, struct tcp_packet *packet)
+tcp_send_packet(int fd, struct tcp_packet *packet, size_t sz)
 {
-    return send(fd, packet, sizeof(struct tcp_packet), 0);
+    return send(fd, packet, PACKET_SIZE(sz), 0);
 }
 
 static ssize_t
@@ -121,8 +125,7 @@ tcp_connect(int fd, struct sockaddr_in *addr)
 
     /* Send first SYN */
     send_packet.flags = SYN;
-    send_packet.other = 0;
-    sz = tcp_send_packet(fd, &send_packet);
+    sz = tcp_send_packet(fd, &send_packet, 0);
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_connect");
         return;
@@ -141,7 +144,7 @@ tcp_connect(int fd, struct sockaddr_in *addr)
 
     /* ACK the received SYN */
     send_packet.flags = ACK;
-    sz = tcp_send_packet(fd, &send_packet);
+    sz = tcp_send_packet(fd, &send_packet, 0);
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_connect");
         return;
@@ -192,8 +195,7 @@ tcp_accept(int fd, struct sockaddr_in *addr)
 
     /* Send SYN + ACK */
     packet.flags = SYN | ACK;
-    packet.other = 0;
-    sz = tcp_send_packet(fd, &packet);
+    sz = tcp_send_packet(fd, &packet, 0);
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_accept");
         return -1;

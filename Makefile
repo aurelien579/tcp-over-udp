@@ -1,22 +1,26 @@
 CC		:= gcc
 CFLAGS	:= -Wall -Wno-unused-function -std=c11
 LFLAGS	:=
-OBJECTS := utils.o tcp.o
+OBJECTS := build/utils.o build/tcp.o
 
 all: server client
 
-server: server.o $(OBJECTS)
+server: build/server.o $(OBJECTS)
 	@echo ' Linking  $@'
 	@$(CC) $(LFLAGS) $^ -o $@
 
-client: client.o $(OBJECTS)
+client: build/client.o $(OBJECTS)
 	@echo ' Linking  $@'
 	@$(CC) $(LFLAGS) $^ -o $@
 
-%.o: %.c
+build/%.o: src/%.c build-dir
 	@echo 'Compiling $<'
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-.PHONY: clean
+.PHONY: clean build-dir
 clean:
-	@rm -f server client *.o
+	@rm -f server client $(OBJECTS)
+	@rmdir build
+	
+build-dir:
+	@mkdir -p build

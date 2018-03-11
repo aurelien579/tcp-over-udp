@@ -1,14 +1,15 @@
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <sys/select.h>
 #include <sys/socket.h>
 
-#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "utils.h"
 #include "tcp.h"

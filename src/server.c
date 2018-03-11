@@ -1,13 +1,13 @@
-#include <sys/select.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdbool.h>
-#include <netinet/in.h>
+
+#include <sys/select.h>
 #include <sys/socket.h>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "utils.h"
 #include "tcp.h"
