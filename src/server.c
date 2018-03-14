@@ -20,7 +20,7 @@ void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
-    int sockfd, yes = 1;
+    struct tcp_socket *socket, *client_socket;
     struct sockaddr_in addr, clientaddr;
     short port;
 
@@ -28,30 +28,23 @@ int main(int argc, char **argv)
 
     port = (short) atoi(argv[1]);
 
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        panic_perror("socket");
-    }
-
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
-        panic_perror("setsockopt");
-    }
+    socket = tcp_socket(1);
 
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
 
-    if (bind(sockfd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) < 0) {
+    if (bind(socket->fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) < 0) {
         panic_perror("bind");
     }
 
-    int client_sockfd = tcp_accept(sockfd, &clientaddr);
+    client_socket = tcp_accept(socket, &clientaddr);
     char buffer[512];
     
-    tcp_recv(client_sockfd, buffer, 512);
+    tcp_recv(client_socket, buffer, 512);
     printf("recv : %s\n", buffer);
 
-    tcp_recv(client_sockfd, buffer, 512);
+    tcp_recv(client_socket, buffer, 512);
     printf("recv : %s\n", buffer);
     
     return EXIT_SUCCESS;

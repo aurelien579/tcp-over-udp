@@ -22,22 +22,18 @@ static void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
-    int sockfd, yes = 1;
     struct sockaddr_in addr;
     short port;
     char *server_ip;
-
+    
+    struct tcp_socket *socket;
+    
     if (argc < 3) usage(argv[0]);
 
     port = (short) atoi(argv[2]);
     server_ip = argv[1];
 
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        panic_perror("socket");
-    }
-
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+    socket = tcp_socket(1);
 
     addr.sin_family = AF_INET;
     if (!inet_aton(server_ip, &addr.sin_addr)) {
@@ -45,12 +41,12 @@ int main(int argc, char **argv)
     }
     addr.sin_port = htons(port);
 
-    tcp_connect(sockfd, &addr);
-    if (tcp_send(sockfd, "TEST", 4) < 0) {
+    tcp_connect(socket, &addr);
+    if (tcp_send(socket, "TEST", 4) < 0) {
         printf("Error while sending\n");
     }
 
-    close(sockfd);
+    close(socket->fd);
 
     return EXIT_SUCCESS;
 }
