@@ -1,7 +1,7 @@
 CC		:= gcc
 CFLAGS	:= -Wall -Wno-unused-function -std=c11
 LFLAGS	:=
-OBJECTS := build/utils.o build/tcp.o build/tcp-buffer.o build/tcp-segment.o
+OBJECTS := build/utils.o build/tcp.o build/tcp-buffer.o build/tcp-segment.o build/buffer.o
 TERM	:= gnome-terminal
 
 all: server client
@@ -14,13 +14,17 @@ client: build/client.o $(OBJECTS)
 	@echo ' Linking  $@'
 	@$(CC) $(LFLAGS) $^ -o $@
 
+test: build/test.o $(OBJECTS)
+	@echo ' Linking  $@'
+	@$(CC) $(LFLAGS) $^ -o $@	
+
 build/%.o: src/%.c build-dir
 	@echo 'Compiling $<'
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean build-dir run
 clean:
-	@rm -f server client
+	@rm -f server client test
 	@rm -R build
 	
 build-dir:
