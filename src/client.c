@@ -45,8 +45,13 @@ int main(int argc, char **argv)
     if (tcp_send(socket, "TEST", 4) < 0) {
         printf("Error while sending\n");
     }
+    
+    if (tcp_send(socket, "test", 4) < 0) {
+        printf("Error while sending\n");
+    }
 
     close(socket->fd);
 
     return EXIT_SUCCESS;
 }
+

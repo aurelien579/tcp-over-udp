@@ -40,9 +40,12 @@ int main(int argc, char **argv)
 
     client_socket = tcp_accept(socket, &clientaddr);
     char buffer[512];
+    sleep(1);
     
     tcp_recv(client_socket, buffer, 512);
     printf("recv : %s\n", buffer);
+
+    memset(buffer, 0, 512);
 
     tcp_recv(client_socket, buffer, 512);
     printf("recv : %s\n", buffer);

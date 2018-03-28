@@ -16,3 +16,16 @@ void panic_perror(const char *msg)
     fprintf(stderr, "[PANIC] %s : %s\n", msg, strerror(errno));
     exit(EXIT_FAILURE);
 }
+
+int min(int a, int b)
+{
+    if (a < b) return a;
+    else return b;
+}
+
+int max(int a, int b)
+{
+    if (a > b) return a;
+    else return b;
+}
+

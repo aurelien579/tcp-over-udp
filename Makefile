@@ -1,7 +1,7 @@
 CC		:= gcc
 CFLAGS	:= -Wall -Wno-unused-function -std=c11
 LFLAGS	:=
-OBJECTS := build/utils.o build/tcp.o
+OBJECTS := build/utils.o build/tcp.o build/tcp-buffer.o build/tcp-segment.o
 TERM	:= gnome-terminal
 
 all: server client

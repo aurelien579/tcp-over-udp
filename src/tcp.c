@@ -23,8 +23,8 @@
 
 #define IS_SET(val, bit)        (val & bit)
 
-#define PACKET_SIZE(data_size)  (sizeof(uint8_t) + data_size)
-#define DATA_SIZE(packet_size)  (packet_size - sizeof(uint8_t))
+#define PACKET_SIZE(data_size)  (sizeof(uint8_t) + 2*sizeof(uint16_t) + data_size)
+#define DATA_SIZE(packet_size)  (packet_size - sizeof(uint8_t) - 2*sizeof(uint16_t))
 
 static struct tcp_socket sockets[MAX_SOCKETS];
 static size_t sockets_count = 0;
@@ -32,6 +32,7 @@ static size_t sockets_count = 0;
 static ssize_t
 tcp_send_packet(struct tcp_socket *sock, struct tcp_packet *packet, size_t data_sz)
 {
+    sock->next_send_seq += data_sz;
     return send(sock->fd, packet, PACKET_SIZE(data_sz), 0);
 }
 
@@ -91,6 +92,10 @@ tcp_socket_new(int fd)
     sock = &sockets[sockets_count++];
     memset(sock, 0, sizeof(struct tcp_socket));
     sock->fd = fd;
+    
+    sock->buffer = tcp_buffer_new(512, 0);
+    sock->next_recv_seq = 0;
+    sock->next_send_seq = 0;
     
     return sock;
 }
@@ -280,6 +285,9 @@ tcp_send(struct tcp_socket *sock, const char *buffer, size_t sz)
             sent_sz = sz;
         }
         
+        packet.seq = sock->next_send_seq;
+        packet.ack = sock->next_recv_seq;
+        
         memcpy(packet.data, buffer + total_sz, sent_sz);
         sent_sz = tcp_send_packet(sock, &packet, sent_sz);
         
@@ -303,11 +311,9 @@ tcp_recv(struct tcp_socket *sock, char *buffer, size_t sz)
     recv_sz = tcp_recv_packet(sock, &packet);
     
     if (recv_sz > 0) {
-        if (sz < recv_sz)
-            memcpy(buffer, packet.data, sz);
-        else
-            memcpy(buffer, packet.data, recv_sz);
+        tcp_buffer_write(sock->buffer, packet.seq, packet.data, DATA_SIZE(recv_sz));
     }
     
-    return sz;
+    return tcp_buffer_read(sock->buffer, (uint8_t *) buffer, sz);
 }
+
