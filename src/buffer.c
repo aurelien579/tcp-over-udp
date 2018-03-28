@@ -68,7 +68,7 @@ buffer_write(struct buffer *self, const unsigned char *in, size_t size)
 }
 
 ssize_t
-buffer_read(struct buffer *self, unsigned char *out, size_t size)
+buffer_read(struct buffer *self, unsigned char *out, size_t size, int flags)
 {
     size = min(size, buffer_get_used_space(self));
     
@@ -87,7 +87,7 @@ buffer_read(struct buffer *self, unsigned char *out, size_t size)
         memcpy(out + at_end, self->data, at_start);
     }
     
-    self->next_read += size;
+    if (!(flags & KEEP_DATA)) self->next_read += size;
     
     return size;
 }
@@ -124,4 +124,15 @@ buffer_set_next_write(struct buffer *self, size_t next_write)
     self->next_write = next_write;
     
     return next_write;
+}
+
+ssize_t
+buffer_set_next_read(struct buffer *self, size_t next_read)
+{
+    if (next_read < self->next_read) return -1;
+    if (next_read > self->next_write) return -1;
+    
+    self->next_read = next_read;
+    
+    return next_read;
 }

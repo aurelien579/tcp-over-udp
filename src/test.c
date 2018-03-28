@@ -12,13 +12,13 @@ main(int argc, char **argv)
     buffer_write(buffer, "TEST2     ", 10);
     buffer_set_next_write(buffer, 15);
     
-    buffer_read(buffer, data, 512);    
+    buffer_read(buffer, data, 512, 1);    
     printf("read: %s\n", data);    
     
     buffer_write(buffer, "TEST3", 5);
     
     memset(data, 0, sizeof(data));
-    buffer_read(buffer, data, 512);
+    buffer_read(buffer, data, 512, 0);
     printf("read: %s\n", data);
     
     buffer_dump(buffer, "dump");
