@@ -1,5 +1,7 @@
 #include "tcp.h"
 #include "tcp-log.h"
+#include "buffer.h"
+#include "send.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,9 +15,7 @@
 
 #define MAX_SOCKETS 20
 
-/* Packet flags */
-#define F_PACKET_ACK 1
-#define F_PACKET_SYN (1 << 1)
+
 
 /* Socket flags */
 #define F_SOCKET_MUST_ACK   1
@@ -23,18 +23,9 @@
 
 #define IS_SET(val, bit)        (val & bit)
 
-#define PACKET_SIZE(data_size)  (sizeof(uint8_t) + 2*sizeof(uint16_t) + data_size)
-#define DATA_SIZE(packet_size)  (packet_size - sizeof(uint8_t) - 2*sizeof(uint16_t))
 
 static struct tcp_socket sockets[MAX_SOCKETS];
 static size_t sockets_count = 0;
-
-static ssize_t
-tcp_send_packet(struct tcp_socket *sock, struct tcp_packet *packet, size_t data_sz)
-{
-    sock->next_send_seq += data_sz;
-    return send(sock->fd, packet, PACKET_SIZE(data_sz), 0);
-}
 
 static ssize_t
 tcp_recv_packet(struct tcp_socket *sock, struct tcp_packet *packet)
@@ -92,11 +83,15 @@ tcp_socket_new(int fd)
     sock = &sockets[sockets_count++];
     memset(sock, 0, sizeof(struct tcp_socket));
     sock->fd = fd;
-    
+
     sock->buffer = tcp_buffer_new(512, 0);
     sock->next_recv_seq = 0;
-    sock->next_send_seq = 0;
-    
+
+    sock->snd_nxt = 0;
+    sock->snd_una = 0;
+    sock->snd_wnd = 4;
+    sock->snd_buf = buffer_new(512, 0);
+
     return sock;
 }
 
@@ -157,7 +152,7 @@ tcp_socket(int reuseaddr)
 void
 tcp_connect(struct tcp_socket *sock, struct sockaddr_in *addr)
 {
-    struct tcp_packet recv_packet, send_packet;
+    struct tcp_packet recv_packet, snd_packet;
     ssize_t sz;
     unsigned short newport;
 
@@ -167,8 +162,8 @@ tcp_connect(struct tcp_socket *sock, struct sockaddr_in *addr)
     }
 
     /* Send first SYN */
-    send_packet.flags = F_PACKET_SYN;
-    sz = tcp_send_packet(sock, &send_packet, 0);
+    snd_packet.flags = F_PACKET_SYN;
+    sz = send_packet(sock, &snd_packet, 0);
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_connect");
         return;
@@ -194,8 +189,8 @@ tcp_connect(struct tcp_socket *sock, struct sockaddr_in *addr)
 
 
     /* ACK the received SYN */
-    send_packet.flags = F_PACKET_ACK;
-    sz = tcp_send_packet(sock, &send_packet, 0);
+    snd_packet.flags = F_PACKET_ACK;
+    sz = send_packet(sock, &snd_packet, 0);
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_connect");
         return;
@@ -245,7 +240,7 @@ tcp_accept(struct tcp_socket *sock, struct sockaddr_in *peer_addr)
     packet.flags = F_PACKET_SYN | F_PACKET_ACK;
     *((short *) packet.data) = newport;
     
-    sz = tcp_send_packet(sock, &packet, sizeof(short));
+    sz = send_packet(sock, &packet, sizeof(short));
     if (sz < 0) {
         tcp_log_errno("tcp_send_packet in tcp_accept");
         return NULL;
@@ -272,9 +267,9 @@ tcp_accept(struct tcp_socket *sock, struct sockaddr_in *peer_addr)
 }
 
 ssize_t
-tcp_send(struct tcp_socket *sock, const char *buffer, size_t sz)
+tcp_send(struct tcp_socket *sock, const char *in, size_t sz)
 {
-    struct tcp_packet packet;
+    /*struct tcp_packet packet;
     size_t total_sz = 0;
     ssize_t sent_sz;
     
@@ -299,7 +294,9 @@ tcp_send(struct tcp_socket *sock, const char *buffer, size_t sz)
         sz -= DATA_SIZE(sent_sz);
     }
     
-    return sent_sz;
+    return sent_sz;*/
+    buffer_write(sock->snd_buf, (const unsigned char *) in, sz);
+    return send_queue_process(sock);
 }
 
 ssize_t
@@ -308,12 +305,18 @@ tcp_recv(struct tcp_socket *sock, char *buffer, size_t sz)
     struct tcp_packet packet;
     ssize_t recv_sz;
     
-    recv_sz = tcp_recv_packet(sock, &packet);
+    recv_sz = tcp_recv_packet(sock, &packet); 
     
     if (recv_sz > 0) {
+        if (packet.flags & F_PACKET_ACK) {
+            printf("ACK received : %d\n", packet.ack);
+            sock->snd_una = packet.ack;
+        }
+        
+        sock->next_recv_seq += DATA_SIZE(recv_sz);
+        
         tcp_buffer_write(sock->buffer, packet.seq, packet.data, DATA_SIZE(recv_sz));
     }
     
     return tcp_buffer_read(sock->buffer, (uint8_t *) buffer, sz);
 }
-

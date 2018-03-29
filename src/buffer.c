@@ -11,6 +11,7 @@
 struct buffer
 {
     size_t size;
+    size_t keep_index;   /* Start of the saved data */
     size_t next_write;
     size_t next_read;
     unsigned char data[];
@@ -24,6 +25,7 @@ buffer_new(size_t size, size_t start_index)
     self->size = size;
     self->next_write = start_index;
     self->next_read = start_index;
+    self->keep_index = start_index;
 
     return self;
 }
@@ -47,13 +49,19 @@ buffer_dump(struct buffer *self, const char *filename)
 size_t
 buffer_get_used_space(struct buffer *self)
 {
-    return self->next_write - self->next_read;
+    return self->next_write - self->keep_index;
 }
 
 size_t
 buffer_get_free_space(struct buffer *self)
 {
     return self->size - buffer_get_used_space(self);
+}
+
+size_t
+buffer_get_readable(struct buffer *self)
+{
+    return self->next_write - self->next_read;
 }
 
 ssize_t
@@ -87,7 +95,9 @@ buffer_read(struct buffer *self, unsigned char *out, size_t size, int flags)
         memcpy(out + at_end, self->data, at_start);
     }
     
-    if (!(flags & KEEP_DATA)) self->next_read += size;
+    if (!(flags & KEEP_DATA)) self->keep_index += size;
+    
+    self->next_read += size;
     
     return size;
 }
@@ -97,7 +107,7 @@ buffer_write_at(struct buffer *self, size_t index, const unsigned char *in,
                 size_t size)
 {
     if (index < self->next_write) return -1;
-    if (self->size < (index - self->next_read) + size) return -1;
+    if (self->size < (index - self->keep_index) + size) return -1;
     
     size_t first = index % self->size;
     size_t last = (index + size) % self->size;    
@@ -119,7 +129,7 @@ ssize_t
 buffer_set_next_write(struct buffer *self, size_t next_write)
 {
     if (next_write < self->next_write) return -1;
-    if (next_write - self->next_read > self->size) return -1;
+    if (next_write - self->keep_index > self->size) return -1;
     
     self->next_write = next_write;
     
@@ -129,10 +139,30 @@ buffer_set_next_write(struct buffer *self, size_t next_write)
 ssize_t
 buffer_set_next_read(struct buffer *self, size_t next_read)
 {
-    if (next_read < self->next_read) return -1;
+    if (next_read < self->keep_index) return -1;
     if (next_read > self->next_write) return -1;
     
     self->next_read = next_read;
     
     return next_read;
+}
+
+
+size_t
+buffer_get_last_written(struct buffer *self)
+{
+    return self->next_write - 1;
+}
+
+int
+buffer_set_keep_index(struct buffer *self, size_t kept)
+{
+    if (kept > self->next_write) return -1;
+    self->keep_index = kept;
+    
+    if (self->next_read < self->keep_index) {
+        self->next_read = self->keep_index;
+    }
+    
+    return 1;
 }

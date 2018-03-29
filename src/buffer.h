@@ -18,6 +18,8 @@ size_t buffer_get_used_space(struct buffer *self);
 size_t buffer_get_free_space(struct buffer *self);
 
 
+size_t buffer_get_readable(struct buffer *self);
+
 /**
  * @brief Write @size bytes in the buffer. Return -1 on error, if there is no
  *   more free space
@@ -62,5 +64,10 @@ ssize_t buffer_write_at(struct buffer *self, size_t index,
  * @return the new next_wrte or -1 on error
  */
 ssize_t buffer_set_next_write(struct buffer *self, size_t next_write);
+
+
+size_t buffer_get_last_written(struct buffer *self);
+
+int buffer_set_keep_index(struct buffer *self, size_t kept);
 
 #endif

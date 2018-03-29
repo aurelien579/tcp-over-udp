@@ -63,7 +63,6 @@ tcp_buffer_write(struct tcp_buffer *buf,
                  const uint8_t *in,
                  uint16_t len)
 {
-    printf("BUFFER: Write at %d, size %d\n", seq, len);
     if (seq - buf->next_read >= buf->size) {
         return -1;
     }
@@ -82,7 +81,6 @@ tcp_buffer_write(struct tcp_buffer *buf,
     
     /* Whole data in one segment => nothing to do */
     if (current) {
-        printf("[BUFFER] [DEBUG] Nothing to do\n");
         return 0;
     }
 
@@ -92,7 +90,6 @@ tcp_buffer_write(struct tcp_buffer *buf,
     }
 
     if (after) {
-        printf("last_seg\n");
         last_seq = after->seq - 1;
     }
 
@@ -108,7 +105,7 @@ tcp_buffer_write(struct tcp_buffer *buf,
 #endif // 0
 
     if (last >= first) {
-#if 1
+#if 0
         printf("[BUFFER] [DEBUG] last > first\n");
 #endif // 0
 
@@ -140,23 +137,25 @@ tcp_buffer_write(struct tcp_buffer *buf,
         current = before;
     }
 
+#if 0
     printf("Segments updated : \n");
     tcp_segment_list_print(buf->segments);
+#endif    
 
     if (current->seq == buf->initial_seq) {
         buf->next_write = current->seq + current->len;
     }
 
+#if 0
     printf("ACK: %d\n", buf->next_write);
+#endif
 
     return len;
 }
 
 ssize_t
 tcp_buffer_read(struct tcp_buffer *buf, uint8_t *out, uint16_t len)
-{
-    printf("\n[BUFFER] [DEBUG] ENTERING: buffer_read\n");
-    
+{    
     len = min(tcp_buffer_get_readable_size(buf), len);
     uint16_t first = buf->next_read % buf->size;
     uint16_t last = (buf->next_read + len) % buf->size;
