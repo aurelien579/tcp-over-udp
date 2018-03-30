@@ -20,7 +20,7 @@ void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
-    struct tcp_socket *socket, *client_socket;
+    Socket *socket, *client_socket;
     struct sockaddr_in addr, clientaddr;
     short port;
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     client_socket = tcp_accept(socket, &clientaddr);
     char buffer[512];
     sleep(1);
-    
+
     tcp_recv(client_socket, buffer, 512);
     printf("recv : %s\n", buffer);
 
@@ -49,13 +49,13 @@ int main(int argc, char **argv)
 
     tcp_recv(client_socket, buffer, 512);
     printf("recv : %s\n", buffer);
-    
-    
-    
+
+
+
     memset(buffer, 0, 512);
 
     tcp_recv(client_socket, buffer, 512);
     printf("recv : %s\n", buffer);
-    
+
     return EXIT_SUCCESS;
 }

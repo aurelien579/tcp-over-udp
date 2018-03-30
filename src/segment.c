@@ -4,63 +4,59 @@
 #include <stdio.h>
 #include <stdint.h>
 
-static struct seg *
-seg_new(uint16_t seq, uint16_t len, struct seg *next)
+static Seg *seg_new(u16 seq, u16 len, Seg *next)
 {
-    struct seg *ck = malloc(sizeof(struct seg));
+    Seg *ck = malloc(sizeof(Seg));
     ck->seq = seq;
     ck->len = len;
     ck->next = next;
     return ck;
 }
 
-struct seglist *
-seglist_new()
+SegList *seglist_new()
 {
-    struct seglist *lst = malloc(sizeof(struct seglist));
+    SegList *lst = malloc(sizeof(SegList));
     lst->head = NULL;
     return lst;
 }
 
-void seglist_free(struct seglist *lst)
+void seglist_free(SegList *lst)
 {
-    struct seg *cur = lst->head;
-    struct seg *tmp = NULL;
-    
+    Seg *cur = lst->head;
+    Seg *tmp = NULL;
+
     while (cur) {
         tmp = cur->next;
         free(cur);
         cur = tmp;
     }
-    
+
     free(lst);
 }
 
-struct seg *
-seglist_add(struct seglist *lst, uint16_t seq, uint16_t len)
+Seg *seglist_add(SegList *lst, u16 seq, u16 len)
 {
-    struct seg *head = lst->head;
+    Seg *head = lst->head;
     lst->head = seg_new(seq, len, head);
     return lst->head;
 }
 
-void
-seglist_del(struct seglist *lst, struct seg *seg)
+void seglist_del(SegList *lst, Seg *seg)
 {
-    struct seg *cur = lst->head;
-    struct seg *prev = NULL;
+    Seg *cur = lst->head;
+    Seg *prev = NULL;
 
     while (cur) {
         if (cur == seg) {
             if (prev) {
                 prev->next = cur->next;
                 free(cur);
-                
+
                 return;
             } else {
                 lst->head = seg->next;
                 free(seg);
-                
+
                 return;
             }
         }
@@ -70,10 +66,9 @@ seglist_del(struct seglist *lst, struct seg *seg)
     }
 }
 
-struct seg *
-seg_containing(struct seglist *lst, uint16_t seq)
+Seg *seg_containing(SegList *lst, u16 seq)
 {
-    foreach (struct seg, el, lst, {
+    foreach (Seg, el, lst, {
         if (seq >= el->seq && seq < el->seq + el->len) {
             return el;
         }
@@ -82,10 +77,9 @@ seg_containing(struct seglist *lst, uint16_t seq)
     return NULL;
 }
 
-struct seg *
-seglist_get_before(struct seglist *lst, uint16_t seq)
+Seg *seglist_get_before(SegList *lst, u16 seq)
 {
-    foreach (struct seg, el, lst, {
+    foreach (Seg, el, lst, {
         if ((seq >= el->seq && seq < el->seq + el->len) ||
             el->seq + el->len - 1 <= seq)
         {
@@ -96,10 +90,9 @@ seglist_get_before(struct seglist *lst, uint16_t seq)
     return NULL;
 }
 
-struct seg *
-seglist_get_after(struct seglist *lst, uint16_t seq)
+Seg *seglist_get_after(SegList *lst, u16 seq)
 {
-    foreach (struct seg, el, lst, {
+    foreach (Seg, el, lst, {
         if ((seq >= el->seq && seq < el->seq + el->len) ||
             el->seq > seq)
         {
@@ -110,12 +103,15 @@ seglist_get_after(struct seglist *lst, uint16_t seq)
     return NULL;
 }
 
-void
-seglist_print(struct seglist *lst)
+void seglist_print(const char *filename, SegList *lst)
 {
-    foreach (struct seg, el, lst, {
-        printf("{ %d - %d }, ", el->seq, el->seq + el->len - 1);
+    FILE *f = fopen(filename, "a");
+    
+    foreach (Seg, el, lst, {
+        fprintf(f, "{ %d - %d }, ", el->seq, el->seq + el->len - 1);
     });
 
-    printf("\n");
+    fprintf(f, "\n");
+
+    fclose(f);
 }

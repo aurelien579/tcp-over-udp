@@ -1,7 +1,7 @@
 #ifndef SEGMENT_H
 #define SEGMENT_H
 
-#include <stdint.h>
+#include "types.h"
 
 #define foreach(T, el, list, code)  \
 do {                                \
@@ -16,27 +16,32 @@ do {                                \
 struct seg
 {
     struct seg *next;
-    uint16_t    seq;
-    uint16_t    len;
+    u16    seq;
+    u16    len;
 };
+
+typedef struct seg Seg;
+
 
 struct seglist
 {
-    struct seg *head;
+    Seg *head;
 };
 
-struct seglist *seglist_new();
-void seglist_free(struct seglist *lst);
+typedef struct seglist SegList;
 
-struct seg *seglist_add(struct seglist *lst, uint16_t seq, uint16_t len);
+SegList *seglist_new();
+void seglist_free(SegList *lst);
 
-void seglist_del(struct seglist *lst, struct seg *seg);
+Seg *seglist_add(SegList *lst, u16 seq, u16 len);
 
-struct seg *seglist_get_before(struct seglist *lst, uint16_t seq);
-struct seg *seglist_get_after(struct seglist *lst, uint16_t seq);
+void seglist_del(SegList *lst, Seg *seg);
 
-struct seg *seg_containing(struct seglist *lst, uint16_t seq);
+Seg *seglist_get_before(SegList *lst, u16 seq);
+Seg *seglist_get_after(SegList *lst, u16 seq);
 
-void seglist_print(struct seglist *lst);
+Seg *seg_containing(SegList *lst, u16 seq);
+
+void seglist_print(const char *filename, SegList *lst);
 
 #endif

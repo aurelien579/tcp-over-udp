@@ -10,17 +10,16 @@
 
 struct buffer
 {
-    size_t size;
-    size_t keep_index;   /* Start of the saved data */
-    size_t next_write;
-    size_t next_read;
-    unsigned char data[];
+    u16 size;
+    u16 keep_index;   /* Start of the saved data */
+    u16 next_write;
+    u16 next_read;
+    u8  data[];
 };
 
-struct buffer *
-buffer_new(size_t size, size_t start_index)
+Buffer *buffer_new(u16 size, u16 start_index)
 {
-    struct buffer *self = malloc(size + 3 * sizeof(size_t));
+    Buffer *self = malloc(size + 3 * sizeof(u16));
 
     self->size = size;
     self->next_write = start_index;
@@ -30,94 +29,86 @@ buffer_new(size_t size, size_t start_index)
     return self;
 }
 
-void
-buffer_free(struct buffer *self)
+void buffer_free(Buffer *self)
 {
-    free(self);}
+    free(self);
+}
 
-void
-buffer_dump(struct buffer *self, const char *filename)
+void buffer_dump(Buffer *self, const char *filename)
 {
     int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0700);
     if (fd < 0) return;
-    
+
     write(fd, self->data, self->size);
-    
+
     close(fd);
 }
 
-size_t
-buffer_get_used_space(struct buffer *self)
+u16 buffer_get_used_space(Buffer *self)
 {
     return self->next_write - self->keep_index;
 }
 
-size_t
-buffer_get_free_space(struct buffer *self)
+u16 buffer_get_free_space(Buffer *self)
 {
     return self->size - buffer_get_used_space(self);
 }
 
-size_t
-buffer_get_readable(struct buffer *self)
+u16 buffer_get_readable(Buffer *self)
 {
     return self->next_write - self->next_read;
 }
 
-ssize_t
-buffer_write(struct buffer *self, const unsigned char *in, size_t size)
+i32 buffer_write(Buffer *self, const u8 *in, u16 size)
 {
-    ssize_t written_size = buffer_write_at(self, self->next_write, in, size);
+    i32 written_size = buffer_write_at(self, self->next_write, in, size);
     if (written_size < 0) return written_size;
-    
+
     buffer_set_next_write(self, self->next_write + written_size);
-    
+
     return written_size;
 }
 
-ssize_t
-buffer_read(struct buffer *self, unsigned char *out, size_t size, int flags)
+i32 buffer_read(Buffer *self, u8 *out, u16 size, u8 flags)
 {
     size = min(size, buffer_get_used_space(self));
-    
+
     if (!size) return 0;
-    
-    size_t first = self->next_read % self->size;
-    size_t last = (self->next_read + size) % self->size;
-    
+
+    u16 first = self->next_read % self->size;
+    u16 last = (self->next_read + size) % self->size;
+
     if (first < last) {
         memcpy(out, self->data + first, size);
-    } else {        
-        size_t at_end = self->size - first;
-        size_t at_start = size - at_end;
-        
+    } else {
+        u16 at_end = self->size - first;
+        u16 at_start = size - at_end;
+
         memcpy(out, self->data + first, at_end);
         memcpy(out + at_end, self->data, at_start);
     }
-    
+
     if (!(flags & KEEP_DATA)) self->keep_index += size;
-    
+
     self->next_read += size;
-    
+
     return size;
 }
 
-ssize_t
-buffer_write_at(struct buffer *self, size_t index, const unsigned char *in,
-                size_t size)
+i32 buffer_write_at(Buffer *self, u16 index, const u8 *in, u16 size)
 {
     if (index < self->next_write) return -1;
     if (self->size < (index - self->keep_index) + size) return -1;
-    
-    size_t first = index % self->size;
-    size_t last = (index + size) % self->size;    
-    
+
+    u16 first = index % self->size;
+    u16 last = (index + size) % self->size;
+
     if (first < last) {
         memcpy(self->data + first, in, size);
-    } else {        
-        size_t at_end = self->size - first;
-        size_t at_start = size - at_end;
-        
+    } else {
+        u16 at_end = self->size - first;
+        u16 at_start = size - at_end;
+
         memcpy(self->data + first, in, at_end);
         memcpy(self->data, in + at_end, at_start);
     }
@@ -125,44 +116,40 @@ buffer_write_at(struct buffer *self, size_t index, const unsigned char *in,
     return size;
 }
 
-ssize_t
-buffer_set_next_write(struct buffer *self, size_t next_write)
+i32 buffer_set_next_write(Buffer *self, u16 next_write)
 {
     if (next_write < self->next_write) return -1;
     if (next_write - self->keep_index > self->size) return -1;
-    
+
     self->next_write = next_write;
-    
+
     return next_write;
 }
 
-ssize_t
-buffer_set_next_read(struct buffer *self, size_t next_read)
+i32 buffer_set_next_read(Buffer *self, u16 next_read)
 {
     if (next_read < self->keep_index) return -1;
     if (next_read > self->next_write) return -1;
-    
+
     self->next_read = next_read;
-    
+
     return next_read;
 }
 
 
-size_t
-buffer_get_last_written(struct buffer *self)
+u16 buffer_get_last_written(Buffer *self)
 {
     return self->next_write - 1;
 }
 
-int
-buffer_set_keep_index(struct buffer *self, size_t kept)
+i8 buffer_set_keep_index(Buffer *self, u16 kept)
 {
     if (kept > self->next_write) return -1;
     self->keep_index = kept;
-    
+
     if (self->next_read < self->keep_index) {
         self->next_read = self->keep_index;
     }
-    
+
     return 1;
 }

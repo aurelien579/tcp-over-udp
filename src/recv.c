@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "segment.h"
 #include "utils.h"
+#include "log.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -13,32 +14,31 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#define RECV_DEBUG  0
+#if LOG_LEVEL > LOG_DEBUG
+    #define DEBUG(...)   tcp_log("RCV", __VA_ARGS__)
+#else
+    #define DEBUG(...)
+#endif
 
-static ssize_t
-store_rcvd_data(struct tcp_socket *s, uint16_t seq, const uint8_t *in, uint16_t len)
+static i32 store_rcvd_data(Socket *s, u16 seq, const u8 *in, u16 len)
 {
     if (len > buffer_get_free_space(s->snd_buf)) {
         return -1;
     }
 
-#if RECV_DEBUG
-    printf("[DEBUG] store_rcvd_data(seq=%d, len=%d)\n", seq, len);
-#endif
+    DEBUG("store_rcvd_data(seq=%d, len=%d)", seq, len);
 
     struct seg *current = seg_containing(s->rcv_segs, seq);
     struct seg *before  = seg_containing(s->rcv_segs, seq - 1);
     struct seg *after   = seg_containing(s->rcv_segs, seq + len);
 
-    uint16_t first  = seq;
-    uint16_t last   = seq + len - 1;
-    uint16_t offset = 0;
+    u16 first  = seq;
+    u16 last   = seq + len - 1;
+    u16 offset = 0;
 
-#if RECV_DEBUG
-    printf("[DEBUG] first  = %d\n", first);
-    printf("[DEBUG] last   = %d\n", last);
-    printf("[DEBUG] offset = %d\n", offset);
-#endif
+    DEBUG("first  = %d", first);
+    DEBUG("last   = %d", last);
+    DEBUG("offset = %d", offset);
 
     /* Whole data in one segment => nothing to do */
     if (current) {
@@ -56,7 +56,7 @@ store_rcvd_data(struct tcp_socket *s, uint16_t seq, const uint8_t *in, uint16_t 
 
     len = min(len, last - first + 1);
 
-    ssize_t ret = buffer_write_at(s->snd_buf, first, in + offset, len);
+    i32 ret = buffer_write_at(s->snd_buf, first, in + offset, len);
     if (ret <= 0) return ret;
 
     if (!before && !after) {
@@ -74,10 +74,12 @@ store_rcvd_data(struct tcp_socket *s, uint16_t seq, const uint8_t *in, uint16_t 
         current = before;
     }
 
-#if RECV_DEBUG
-    printf("[DEBUG] Segments updated : \n\t");
-    seglist_print(s->rcv_segs);
-#endif    
+    DEBUG("Segments updated :");
+#if LOG_LEVEL > LOG_DEBUG
+    #ifdef LOG_FILE
+        seglist_print(LOG_FILE, s->rcv_segs);
+    #endif
+#endif
 
     if (current->seq == s->irs) {
         buffer_set_next_write(s->snd_buf, current->seq + current->len);
@@ -86,39 +88,36 @@ store_rcvd_data(struct tcp_socket *s, uint16_t seq, const uint8_t *in, uint16_t 
     return len;
 }
 
-ssize_t
-recv_packet(struct tcp_socket *sock, struct tcp_packet *packet)
+i32 recv_packet(Socket *sock, Packet *packet)
 {
-    printf("Receiving...\n");
-    return recv(sock->fd, packet, sizeof(struct tcp_packet), 0);
+    DEBUG("Receiving...");
+    return recv(sock->fd, packet, sizeof(Packet), 0);
 }
 
-ssize_t
-recv_to_buffer(struct tcp_socket *sock)
+i32 recv_to_buffer(Socket *sock)
 {
-    struct tcp_packet packet;
-    
-    ssize_t ret = recv_packet(sock, &packet);
+    Packet packet;
+
+    i32 ret = recv_packet(sock, &packet);
     if (ret < 0) return ret;
-    
+
     if (packet.flags & F_PACKET_ACK) {
-        printf("ACK received : %d\n", packet.ack);
+        DEBUG("ACK received : %d", packet.ack);
         sock->snd_una = packet.ack;
     }
-    
+
     sock->rcv_nxt += DATA_SIZE(ret);
 
     return store_rcvd_data(sock, packet.seq, packet.data, DATA_SIZE(ret));
 }
 
-int
-recv_syn(struct tcp_socket *sock, struct tcp_packet *packet, struct sockaddr_in *addr)
+i8 recv_syn(Socket *sock, Packet *packet, struct sockaddr_in *addr)
 {
-    ssize_t sz;
+    i32 sz;
     socklen_t addrlen = sizeof(struct sockaddr_in);
-    
+
     do {
-        sz = recvfrom(sock->fd, packet, sizeof(struct tcp_packet), 0,
+        sz = recvfrom(sock->fd, packet, sizeof(Packet), 0,
                       (struct sockaddr *) addr, &addrlen);
 
         if (sz < 0) return -1;

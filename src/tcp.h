@@ -4,6 +4,7 @@
 #include "buffer.h"
 #include "segment.h"
 #include "send.h"
+#include "types.h"
 
 #include <netinet/in.h>
 
@@ -19,43 +20,44 @@
 
 struct tcp_packet
 {
-    uint8_t flags;
-    uint16_t seq;
-    uint16_t ack;
-    uint8_t data[MAX_DATA];
+    u8      flags;
+    u16     seq;
+    u16     ack;
+    u8      data[MAX_DATA];
 } __attribute__((packed));
 
 
-#define PACKET_SIZE(data_size)  (sizeof(uint8_t) + 2*sizeof(uint16_t) + data_size)
-#define DATA_SIZE(packet_size)  (packet_size - sizeof(uint8_t) - 2*sizeof(uint16_t))
-
-
+#define PACKET_SIZE(data_size)  (sizeof(u8) + 2*sizeof(u16) + data_size)
+#define DATA_SIZE(packet_size)  (packet_size - sizeof(u8) - 2*sizeof(u16))
 
 struct tcp_socket
 {
-    int             fd;
-    uint8_t         flags;
-    
+    int         fd;
+    u8          flags;
+
     /* Recv parameters */
-    uint16_t        irs;        /* Initial receive sequence # */
-    uint16_t        rcv_nxt;    /* Next sequence number to send */
-    struct seglist *rcv_segs;   /* Received segments, used for reordering */
-    struct buffer  *rcv_buf;
-    
+    u16         irs;        /* Initial receive sequence # */
+    u16         rcv_nxt;    /* Next sequence number to send */
+    SegList    *rcv_segs;   /* Received segments, used for reordering */
+    Buffer     *rcv_buf;
+
     /* Send parameters */
-    uint16_t        snd_nxt;    /* Next sequence # to send */
-    uint16_t        snd_una;    /* First unacknowledge sequence # */
-    uint16_t        snd_wnd;    /* Send window size */
-    struct buffer  *snd_buf;
+    u16         snd_nxt;    /* Next sequence # to send */
+    u16         snd_una;    /* First unacknowledge sequence # */
+    u16         snd_wnd;    /* Send window size */
+    Buffer     *snd_buf;
 };
 
-struct tcp_socket *tcp_socket(int reuseaddr);
-void tcp_close(struct tcp_socket *s);
+typedef struct tcp_socket Socket;
+typedef struct tcp_packet Packet;
 
-void tcp_connect(struct tcp_socket *s, struct sockaddr_in *addr);
-struct tcp_socket *tcp_accept(struct tcp_socket *s, struct sockaddr_in *addr);
+Socket *tcp_socket(int reuseaddr);
+void tcp_close(Socket *s);
 
-ssize_t tcp_recv(struct tcp_socket *s, char *buffer, size_t sz);
-ssize_t tcp_send(struct tcp_socket *s, const char *buffer, size_t sz);
+void tcp_connect(Socket *s, struct sockaddr_in *addr);
+Socket *tcp_accept(Socket *s, struct sockaddr_in *addr);
+
+ssize_t tcp_recv(Socket *s, char *buffer, size_t sz);
+ssize_t tcp_send(Socket *s, const char *buffer, size_t sz);
 
 #endif

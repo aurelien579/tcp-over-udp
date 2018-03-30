@@ -2,42 +2,42 @@
 #define BUFFER_H
 
 #include <sys/types.h>
+#include "types.h"
 
 /* Read flags */
 #define ERASE_DATA     0
 #define KEEP_DATA      1
 
-struct buffer;
+typedef struct buffer Buffer;
 
-struct buffer *buffer_new(size_t size, size_t start_index);
-void buffer_free(struct buffer *self);
+Buffer *buffer_new(u16 size, u16 start_index);
+void buffer_free(Buffer *self);
 
-void buffer_dump(struct buffer *self, const char *filename);
+void buffer_dump(Buffer *self, const char *filename);
 
-size_t buffer_get_used_space(struct buffer *self);
-size_t buffer_get_free_space(struct buffer *self);
+u16 buffer_get_used_space(Buffer *self);
+u16 buffer_get_free_space(Buffer *self);
 
 
-size_t buffer_get_readable(struct buffer *self);
+u16 buffer_get_readable(Buffer *self);
 
 /**
  * @brief Write @size bytes in the buffer. Return -1 on error, if there is no
  *   more free space
  * @return the number of bytes written or -1 on error
  */
-ssize_t buffer_write(struct buffer *self, const unsigned char *in, size_t size);
+i32 buffer_write(Buffer *self, const u8 *in, u16 sz);
 
 
 /**
  * @brief Read at maximun @size bytes from the buffer in @out. No error when
  *   there is nothing to read, just return 0.
- * @param flags 
+ * @param flags
  *      ERASE_DATA  : Data won't be read again
  *      KEEP_DATA   : Data will be read again
  * @return the number of bytes read
  */
-ssize_t buffer_read(struct buffer *self, unsigned char *out, size_t size,
-                    int flags);
+i32 buffer_read(Buffer *self, u8 *out, u16 size, u8 flags);
 
 
 /**
@@ -46,15 +46,14 @@ ssize_t buffer_read(struct buffer *self, unsigned char *out, size_t size,
  *  next_write cursor
  * @return next_read or -1 on error
  */
-ssize_t buffer_set_next_read(struct buffer *self, size_t next_read);
+i32 buffer_set_next_read(Buffer *self, u16 next_read);
 
 
 /**
  * @brief Works like buffer_write but the start index is specified.
  * @return the number of bytes written or -1 on error
  */
-ssize_t buffer_write_at(struct buffer *self, size_t index,
-                        const unsigned char *in, size_t size);
+i32 buffer_write_at(Buffer *self, u16 index, const u8 *in, u16 size);
 
 
 /**
@@ -63,11 +62,11 @@ ssize_t buffer_write_at(struct buffer *self, size_t index,
  *   trying to go beyond maximun size.
  * @return the new next_wrte or -1 on error
  */
-ssize_t buffer_set_next_write(struct buffer *self, size_t next_write);
+i32 buffer_set_next_write(Buffer *self, u16 next_write);
 
 
-size_t buffer_get_last_written(struct buffer *self);
+u16 buffer_get_last_written(Buffer *self);
 
-int buffer_set_keep_index(struct buffer *self, size_t kept);
+i8 buffer_set_keep_index(Buffer *self, u16 kept);
 
 #endif

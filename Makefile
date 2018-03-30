@@ -30,7 +30,7 @@ build/%.o: src/%.c build-dir
 
 .PHONY: clean build-dir run
 clean:
-	@rm -f server client test
+	@rm -f server client test log.txt
 	@rm -R build
 	
 build-dir:

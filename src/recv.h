@@ -1,18 +1,18 @@
 #ifndef RECV_H
 #define RECV_H
 
-#include <sys/types.h>
+#include "types.h"
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-struct tcp_socket;
-struct tcp_packet;
+typedef struct tcp_socket Socket;
+typedef struct tcp_packet Packet;
 
-ssize_t recv_to_buffer(struct tcp_socket *sock);
-ssize_t recv_packet(struct tcp_socket *sock, struct tcp_packet *packet);
+i32 recv_to_buffer(Socket *sock);
+i32 recv_packet(Socket *sock, Packet *packet);
 
-int recv_syn(struct tcp_socket *s, struct tcp_packet *p, struct sockaddr_in *addr);
+i8 recv_syn(Socket *s, Packet *p, struct sockaddr_in *addr);
 
 #endif

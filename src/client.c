@@ -25,12 +25,12 @@ static void usage(const char *prog)
 void test_send(struct tcp_socket *sock, char *data, int seq, int ack, int flags)
 {
     struct tcp_packet packet;
-    
-    strcpy(packet.data, data);
+
+    strcpy((char *) packet.data, data);
     packet.seq = seq;
     packet.ack = ack;
     packet.flags = flags;
-    
+
     send_packet(sock, &packet, strlen(data));
 }
 
@@ -46,9 +46,9 @@ int main(int argc, char **argv)
     struct sockaddr_in addr;
     short port;
     char *server_ip;
-    
-    struct tcp_socket *socket;
-    
+
+    Socket *socket;
+
     if (argc < 3) usage(argv[0]);
 
     port = (short) atoi(argv[2]);
@@ -64,11 +64,11 @@ int main(int argc, char **argv)
 
     tcp_connect(socket, &addr);
     test(socket);
-    
+
     /*if (tcp_send(socket, "TEST", 4) < 0) {
         printf("Error while sending\n");
     }
-    
+
     if (tcp_send(socket, "test", 4) < 0) {
         printf("Error while sending\n");
     }*/
