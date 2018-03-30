@@ -3,10 +3,10 @@ CFLAGS	:= -Wall -Wno-unused-function -std=c11
 LFLAGS	:=
 OBJECTS := build/utils.o 		\
 		   build/tcp.o			\
-		   build/tcp-buffer.o	\
-		   build/tcp-segment.o	\
+		   build/segment.o		\
 		   build/buffer.o		\
-		   build/send.o
+		   build/send.o			\
+		   build/recv.o
 
 TERM	:= gnome-terminal
 

@@ -14,10 +14,31 @@
 #include "utils.h"
 #include "tcp.h"
 
+#include "send.h"
+
 static void usage(const char *prog)
 {
     printf("Usage: %s server_ip server_port\n", prog);
     exit(EXIT_FAILURE);
+}
+
+void test_send(struct tcp_socket *sock, char *data, int seq, int ack, int flags)
+{
+    struct tcp_packet packet;
+    
+    strcpy(packet.data, data);
+    packet.seq = seq;
+    packet.ack = ack;
+    packet.flags = flags;
+    
+    send_packet(sock, &packet, strlen(data));
+}
+
+void test(struct tcp_socket *sock)
+{
+    test_send(sock, "TEST0", 0, 0, 0);
+    test_send(sock, "TEST2", 10, 0, 0);
+    test_send(sock, "TEST1", 5, 0, 0);
 }
 
 int main(int argc, char **argv)
@@ -42,15 +63,17 @@ int main(int argc, char **argv)
     addr.sin_port = htons(port);
 
     tcp_connect(socket, &addr);
-    if (tcp_send(socket, "TEST", 4) < 0) {
+    test(socket);
+    
+    /*if (tcp_send(socket, "TEST", 4) < 0) {
         printf("Error while sending\n");
     }
     
     if (tcp_send(socket, "test", 4) < 0) {
         printf("Error while sending\n");
-    }
+    }*/
 
-    close(socket->fd);
+    tcp_close(socket);
 
     return EXIT_SUCCESS;
 }

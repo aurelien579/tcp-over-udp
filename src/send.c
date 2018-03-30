@@ -20,7 +20,7 @@ send_next(struct tcp_socket *sock, size_t size)
     
     /* Fill header */
     packet.flags = F_PACKET_ACK;
-    packet.ack = sock->next_recv_seq;
+    packet.ack = sock->rcv_nxt;
     packet.seq = sock->snd_nxt;
     
     ssize_t ret = buffer_read(sock->snd_buf, packet.data, size, KEEP_DATA);

@@ -1,7 +1,9 @@
 #include "tcp.h"
-#include "tcp-log.h"
+#include "log.h"
 #include "buffer.h"
+#include "segment.h"
 #include "send.h"
+#include "recv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,42 +21,6 @@
 
 /* Socket flags */
 #define F_SOCKET_MUST_ACK   1
-
-
-#define IS_SET(val, bit)        (val & bit)
-
-
-static struct tcp_socket sockets[MAX_SOCKETS];
-static size_t sockets_count = 0;
-
-static ssize_t
-tcp_recv_packet(struct tcp_socket *sock, struct tcp_packet *packet)
-{
-    tcp_log("Receiving...");
-    return recv(sock->fd, packet, sizeof(struct tcp_packet), 0);
-}
-
-static ssize_t
-tcp_recv_packet_from(struct tcp_socket *sock, struct tcp_packet *packet, struct sockaddr_in *addr)
-{
-    socklen_t addrlen = sizeof(struct sockaddr_in);
-    return recvfrom(sock->fd, packet, sizeof(struct tcp_packet), 0,
-                    (struct sockaddr *) addr, &addrlen);
-}
-
-static int
-tcp_recv_syn(struct tcp_socket *sock, struct tcp_packet *packet, struct sockaddr_in *addr)
-{
-    ssize_t sz;
-
-    do {
-        sz = tcp_recv_packet_from(sock, packet, addr);
-
-        if (sz < 0) return -1;
-    } while (!IS_SET(packet->flags, F_PACKET_SYN));
-
-    return 0;
-}
 
 static int
 tcp_associate_socket(struct tcp_socket *sock, struct sockaddr_in *addr)
@@ -75,22 +41,20 @@ tcp_socket_new(int fd)
 {
     struct tcp_socket *sock;
     
-    if (sockets_count >= MAX_SOCKETS) {
-        tcp_log_error("No more socket available");
-        return NULL;
-    }
-    
-    sock = &sockets[sockets_count++];
+    sock = malloc(sizeof(struct tcp_socket));
     memset(sock, 0, sizeof(struct tcp_socket));
-    sock->fd = fd;
+    
+    sock->fd        = fd;
 
-    sock->buffer = tcp_buffer_new(512, 0);
-    sock->next_recv_seq = 0;
-
-    sock->snd_nxt = 0;
-    sock->snd_una = 0;
-    sock->snd_wnd = 4;
-    sock->snd_buf = buffer_new(512, 0);
+    sock->rcv_buf   = buffer_new(512, 0);
+    sock->rcv_segs  = seglist_new();
+    sock->rcv_nxt   = 0;    
+    sock->irs       = 0;
+    
+    sock->snd_nxt   = 0;
+    sock->snd_una   = 0;
+    sock->snd_wnd   = 50;
+    sock->snd_buf   = buffer_new(512, 0);
 
     return sock;
 }
@@ -150,14 +114,35 @@ tcp_socket(int reuseaddr)
 }
 
 void
+tcp_close(struct tcp_socket *s)
+{
+    struct tcp_packet p;
+    
+    p.flags = F_PACKET_FIN;
+    p.ack   = 0;
+    p.seq   = 0;
+    
+    send_packet(s, &p, 0);
+    
+    buffer_free(s->snd_buf);
+    buffer_free(s->rcv_buf);
+    seglist_free(s->rcv_segs);
+    
+    close(s->fd);
+    free(s);
+}
+
+void
 tcp_connect(struct tcp_socket *sock, struct sockaddr_in *addr)
 {
     struct tcp_packet recv_packet, snd_packet;
     ssize_t sz;
     unsigned short newport;
-
+    
+    memset(&snd_packet, 0, sizeof(snd_packet));
+    
     if (tcp_associate_socket(sock, addr) < 0) {
-        tcp_log_errno("tcp_associate_socket in tcp_connect");
+        tcp_log_errno("TCP", "tcp_associate_socket in tcp_connect");
         return;
     }
 
@@ -165,42 +150,36 @@ tcp_connect(struct tcp_socket *sock, struct sockaddr_in *addr)
     snd_packet.flags = F_PACKET_SYN;
     sz = send_packet(sock, &snd_packet, 0);
     if (sz < 0) {
-        tcp_log_errno("tcp_send_packet in tcp_connect");
+        tcp_log_errno("TCP", "tcp_send_packet in tcp_connect");
         return;
     }
-    tcp_log("SYN sent");
-
 
     /* Receive SYN packet */
     recv_packet.flags = 0;
-    if (tcp_recv_syn(sock, &recv_packet, addr) < 0) {
-        tcp_log_errno("tcp_recv_syn in tcp_connect");
+    if (recv_syn(sock, &recv_packet, addr) < 0) {
+        tcp_log_errno("TCP", "tcp_recv_syn in tcp_connect");
         return;
     }
     
     if (!IS_SET(recv_packet.flags, F_PACKET_ACK)) {
-        tcp_log_error("ACK not present in tcp_connect");
+        tcp_log_error("TCP", "ACK not present in tcp_connect");
         return;
     }
     
     newport = *((unsigned short *) recv_packet.data);
-    
-    tcp_log("SYN + ACK received");
-
 
     /* ACK the received SYN */
     snd_packet.flags = F_PACKET_ACK;
     sz = send_packet(sock, &snd_packet, 0);
     if (sz < 0) {
-        tcp_log_errno("tcp_send_packet in tcp_connect");
+        tcp_log_errno("TCP", "tcp_send_packet in tcp_connect");
         return;
     }
-    tcp_log("ACK sent");
     
     /* Associate the socket with the new server port */
     addr->sin_port = newport;
     if (tcp_associate_socket(sock, addr) < 0) {
-        tcp_log_errno("tcp_associate_socket to newport in tcp_connect");
+        tcp_log_errno("TCP", "tcp_associate_socket to newport in tcp_connect");
         return;
     }
 }
@@ -217,22 +196,21 @@ tcp_accept(struct tcp_socket *sock, struct sockaddr_in *peer_addr)
     unsigned short newport;
 
     /* Receive the SYN */
-    if (tcp_recv_syn(sock, &packet, peer_addr) < 0) {
-        tcp_log_errno("tcp_recv_syn in tcp_accept");
+    if (recv_syn(sock, &packet, peer_addr) < 0) {
+        tcp_log_errno("TCP", "tcp_recv_syn in tcp_accept");
         return NULL;
     }
-    tcp_log("SYN received");
 
     /* Associate the socket to the sender of the SYN */
     if (tcp_associate_socket(sock, peer_addr) < 0) {
-        tcp_log_errno("tcp_associate_socket in tcp_accept");
+        tcp_log_errno("TCP", "tcp_associate_socket in tcp_accept");
         return NULL;
     }
     
     /* Create a new socket bound on random port */
     new_sock = tcp_create_socket(peer_addr, &newport);
     if (!new_sock) {
-        tcp_log_errno("tcp_create_socket in tcp_accept");
+        tcp_log_errno("TCP", "tcp_create_socket in tcp_accept");
         return NULL;
     }
     
@@ -242,24 +220,20 @@ tcp_accept(struct tcp_socket *sock, struct sockaddr_in *peer_addr)
     
     sz = send_packet(sock, &packet, sizeof(short));
     if (sz < 0) {
-        tcp_log_errno("tcp_send_packet in tcp_accept");
+        tcp_log_errno("TCP", "tcp_send_packet in tcp_accept");
         return NULL;
     }
-    tcp_log("SYN + ACK sent");
-
 
     /* Receive the ACK */
-    sz = tcp_recv_packet(sock, &packet);
+    sz = recv_packet(sock, &packet);
     if (sz < 0) {
-        tcp_log_errno("tcp_recv_packet in tcp_accept");
+        tcp_log_errno("TCP", "tcp_recv_packet in tcp_accept");
         return NULL;
     }
-
-    tcp_log("ACK received");
 
     /* Disasociate the socket for future connections */
     if (tcp_disassociate_socket(sock) < 0) {
-        tcp_log_errno("tcp_disassociate_socket in tcp_accept");
+        tcp_log_errno("TCP", "tcp_disassociate_socket in tcp_accept");
         return NULL;
     }
 
@@ -269,32 +243,6 @@ tcp_accept(struct tcp_socket *sock, struct sockaddr_in *peer_addr)
 ssize_t
 tcp_send(struct tcp_socket *sock, const char *in, size_t sz)
 {
-    /*struct tcp_packet packet;
-    size_t total_sz = 0;
-    ssize_t sent_sz;
-    
-    while (sz > 0) {
-        if (sz > MAX_DATA) {
-            sent_sz = MAX_DATA;
-        } else {
-            sent_sz = sz;
-        }
-        
-        packet.seq = sock->next_send_seq;
-        packet.ack = sock->next_recv_seq;
-        
-        memcpy(packet.data, buffer + total_sz, sent_sz);
-        sent_sz = tcp_send_packet(sock, &packet, sent_sz);
-        
-        if (sent_sz < 0) {
-            return total_sz;
-        }
-        
-        total_sz += DATA_SIZE(sent_sz);
-        sz -= DATA_SIZE(sent_sz);
-    }
-    
-    return sent_sz;*/
     buffer_write(sock->snd_buf, (const unsigned char *) in, sz);
     return send_queue_process(sock);
 }
@@ -302,21 +250,8 @@ tcp_send(struct tcp_socket *sock, const char *in, size_t sz)
 ssize_t
 tcp_recv(struct tcp_socket *sock, char *buffer, size_t sz)
 {
-    struct tcp_packet packet;
-    ssize_t recv_sz;
+    ssize_t ret = recv_to_buffer(sock);
+    if (ret < 0) return ret;
     
-    recv_sz = tcp_recv_packet(sock, &packet); 
-    
-    if (recv_sz > 0) {
-        if (packet.flags & F_PACKET_ACK) {
-            printf("ACK received : %d\n", packet.ack);
-            sock->snd_una = packet.ack;
-        }
-        
-        sock->next_recv_seq += DATA_SIZE(recv_sz);
-        
-        tcp_buffer_write(sock->buffer, packet.seq, packet.data, DATA_SIZE(recv_sz));
-    }
-    
-    return tcp_buffer_read(sock->buffer, (uint8_t *) buffer, sz);
+    return buffer_read(sock->snd_buf, (unsigned char *) buffer, sz, ERASE_DATA);
 }
